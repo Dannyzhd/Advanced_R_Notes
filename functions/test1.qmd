@@ -1,7 +1,0 @@
----
-title: "Chapter 6 Functions"
-format: html
-editor: visual
----
-
-# Functions
