@@ -1,0 +1,41 @@
+---
+title: "Chapter 6 Functions"
+format: html
+editor: visual
+---
+
+# Functionals
+
+::: callout-note
+To become significantly more reliable, code must become more transparent. In particular, nested conditions and loops must be viewed with great suspicion. Complicated control flows confuse programmers. Messy code often hides bugs.
+
+--- Bjarne Stroustrup
+:::
+
+# Def: Functional
+
+A **functional** is a function that takes a function as an input and returns a vector as output.
+
+example
+
+```{r}
+
+# a function that takes a function which takes 1000 uniform number as inputs.
+randomise <- function(f) f(runif(1e3))
+randomise(mean)
+
+randomise(sum)
+
+```
+
+we already used **functional** before, such as `lapply` ，`sapply`, `apply` as alternatives for loop.
+
+### why not for loop?
+
+1.  for loop is slow
+2.  for loop is flexible thus hard to interpret.
+
+whereas:
+
+1.  functional is fast
+2.  Each functional is tailored for a specific task, so when you recognise the functional you immediately know why it\'s being used.
