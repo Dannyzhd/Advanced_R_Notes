@@ -38,4 +38,4 @@ we already used **functional** before, such as `lapply` ，`sapply`, `apply` as 
 whereas:
 
 1.  functional is fast
-2.  Each functional is tailored for a specific task, so when you recognise the functional you immediately know why it\'s being used.
+2.  Each functional is tailored for a specific task, so when you recognise the functional you immediately know why it's being used.
