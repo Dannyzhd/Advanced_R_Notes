@@ -189,7 +189,7 @@ map_dbl(x, list("y", 1))
 
 ***Don't confuse:***
 
-Notice: default of non-existing indexing is NULL. See `?pluck.` so although `map(x, "z")` , map(x, "z") is not as NULL cannot be coerced into character. Unless we provide a default.
+Notice: default of non-existing indexing is NULL. See `?pluck.` so although `map(x, "z")` is fine, map_chr(x, "z") is not as NULL cannot be coerced into character. Unless we provide a default.
 
 ```{r eval=FALSE}
 # You'll get an error if a component doesn't exist:
@@ -198,7 +198,7 @@ map_chr(x, "z")
 ```
 
 ```{r}
-# Unless you supply a .default value
+# Unless you supply a .default value (argument for purrr::pluck)
 map_chr(x, "z", .default = NA)
 ```
 
