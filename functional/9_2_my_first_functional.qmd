@@ -10,7 +10,7 @@ editor: visual
 ---
 
 ```{r}
-library(purrr)
+library(tidyverse)
 ```
 
 # 9.2.1 purrr::map()
@@ -244,10 +244,28 @@ map_dbl(x, mean, na.rm = T)
 
 Don't write it using both twiddle and additional argument(s), the later will be ignored!!
 
-Don't pass the argument after anonymous function. It won't work.
+Don't pass the argument saved for named function after anonymous function. It won't work. Since the argument is not defined in the anonymous function.
 
 ```{r}
 map(x, ~mean(.x), na.rm = T)
+```
+
+But we can pass additional argument this way into anonymous function for arguments we defined in the anonymous function using .x, .y or ..1, ..2, ..3 ...
+
+```{r}
+map(1:3, function(x, y){x^2 + y}, y = 10000)
+```
+
+is equivalent to
+
+```{r}
+map(1:3, ~.x^2 + .y, .y = 10000)
+```
+
+is equivalent to
+
+```{r}
+map(1:3, .f =~ ..1^2 + ..2, ..2 = 10000)
 ```
 
 ### Properties:
@@ -369,3 +387,227 @@ e.g.
 `map(.x, .f, ..., .progress = FALSE)`
 
 `apply(X, MARGIN, FUN, ..., simplify = TRUE)`
+
+# 9.2.6 Exercises
+
+### Q1
+
+1.  Use [`as_mapper()`](https://purrr.tidyverse.org/reference/as_mapper.html) to explore how purrr generates anonymous functions for the integer, character, and list helpers. What helper allows you to extract attributes? Read the documentation to find out.
+
+```{r}
+as_mapper(2)
+as_mapper("cool")
+as_mapper(list(1, "nice"))
+?as_mapper
+as_mapper(runif)
+as_mapper(mean)
+as_mapper(head)
+```
+
+### Q2
+
+1.  [`map(1:3, ~ runif(2))`](https://purrr.tidyverse.org/reference/map.html) is a useful pattern for generating random numbers, but [`map(1:3, runif(2))`](https://purrr.tidyverse.org/reference/map.html) is not. Why not? Can you explain why it returns the result that it does?
+
+```{r}
+map(1:3, ~runif(2))
+```
+
+essentially makes an anonymous function using a shortcut twiddle \~. it is equivalent to
+
+```{r}
+map(1:3, .f = function(x){runif(2)} )
+```
+
+basically the function body part runif(2) runs for three iterations, each time generating a pair of uniform (0,1) for us.
+
+On the other hand, runif(2) here is not a **function-type value,** nor does it have a twiddle to turn it into an anonymous function(also a **function-type value**) In that case, as_mapper turn it into an indexing function, basically equivalent to `map(1:3, .f = 0.5)` . And in this version of purrr is seems like it rounds down when indexing while indexing 0 is equivalent to indexing 1.
+
+```{r}
+map(1:3, runif(2))
+```
+
+We basically indexed each length-one vector by one and then indexed the resulting length-one vector by one again.
+
+Should we add to the indexing, the result would be NULL, the default of pluck_raw.
+
+```{r}
+map(1:3, runif(2,min = 2))
+```
+
+```{r}
+as_mapper(~runif(2))
+as_mapper(runif(2))
+```
+
+### Q3
+
+1.  Use the appropriate [`map()`](https://purrr.tidyverse.org/reference/map.html) function to:
+
+    1.  Compute the standard deviation of every column in a numeric data frame.
+
+    2.  Compute the standard deviation of every numeric column in a mixed data frame. (Hint: you'll need to do it in two steps.)
+
+    3.  Compute the number of levels for every factor in a data frame.
+
+2.  let's do iris's first 4 columns.
+
+```{r}
+map(iris[,1:4], sd)
+```
+
+2.  Lets first leverage map_lgl to find the boolean index vector of columns being numeric
+
+    then using it to extract the numeric part of the dataframe we can repeat what we did in Q1
+
+```{r}
+(num_index <- map_lgl(iris, is.numeric))
+
+map(iris[num_index], sd)
+```
+
+3.  Let's first turn all cha columns in CO2 into factor.
+
+```{r}
+CO22 <- CO2 %>%
+  mutate(across(where(is.character), as.factor))
+```
+
+Repeat what we did in Q2
+
+```{r}
+(fac_index <- map_lgl(CO22, is.factor))
+```
+
+```{r}
+
+map(CO22[fac_index], levels) %>% 
+  map(length)
+
+# or smarterly we can do
+map(CO22[fac_index], ~length(levels(.x)))
+
+```
+
+### Q4
+
+The following code simulates the performance of a t-test for non-normal data. Extract the p-value from each test, then visualise.
+
+```{r}
+trials <- map(1:100, ~ t.test(rpois(10, 10), rpois(7, 10)))
+```
+
+```{r}
+trials_p_values <- trials %>% map_dbl("p.value")
+
+hist(trials_p_values)
+
+```
+
+Solution from book.
+
+```{r}
+library(ggplot2)
+
+df_trials <- tibble::tibble(p_value = map_dbl(trials, "p.value"))
+
+df_trials %>%
+  ggplot(aes(x = p_value, fill = p_value < 0.05)) +
+  geom_dotplot(binwidth = .01) +  # geom_histogram() as alternative
+  theme(
+    axis.text.y = element_blank(),
+    axis.ticks.y = element_blank(),
+    legend.position = "top"
+  )
+```
+
+### Q5
+
+The following code uses a map nested inside another map to apply a function to every element of a nested list. Why does it fail, and what do you need to do to make it work?
+
+```{r}
+x <- list(
+  list(1, c(3, 9)),
+  list(c(3, 6), 7, c(4, 7, 6))
+)
+
+triple <- function(x) x * 3
+# map(x, map, .f = triple)
+
+
+
+#> Error in .f(.x[[i]], ...): unused argument (function (.x, .f, ...)
+#> {
+#> .f <- as_mapper(.f, ...)
+#> .Call(map_impl, environment(), ".x", ".f", "list")
+#> })
+```
+
+instead of triple being passed into .f map and map is called for each element of x to map that element list by tripling through it, the line of code wrongly passed triple as the .f, passing map as an argument to that triple, which results in the error.
+
+```{r}
+map(.x = x, .f = map,  triple)
+
+```
+
+### Q6
+
+Use [`map()`](https://purrr.tidyverse.org/reference/map.html) to fit linear models to the `mtcars` dataset using the formulas stored in this list:
+
+```{r}
+formulas <- list(
+  mpg ~ disp,
+  mpg ~ I(1 / disp),
+  mpg ~ disp + wt,
+  mpg ~ I(1 / disp) + wt
+)
+```
+
+let's do so by iterating through the formula list!
+
+```{r}
+map(formulas,  ~lm(formula = .x, data = mtcars)  )
+```
+
+Alternatively if we recognize the first argument is simply `formula`
+
+```{r}
+models <- map(formulas, lm, data = mtcars)
+```
+
+### Q7
+
+Fit the model `mpg ~ disp` to each of the bootstrap replicates of `mtcars` in the list below, then extract the $R^2$of the model fit (Hint: you can compute the $R^2$ with [`summary()`](https://rdrr.io/r/base/summary.html).)
+
+```{r}
+bootstrap <- function(df) {
+  df[sample(nrow(df), replace = TRUE), , drop = FALSE]
+}
+
+bootstraps <- map(1:10, ~ bootstrap(mtcars))
+
+```
+
+let's fit through each of the bootstrapped mrcars'
+
+```{r}
+fits_lsit <- map(bootstraps, .f = lm, formula = mpg~disp)
+```
+
+```{r}
+summaries_lsit <- map(fits_lsit, summary)
+```
+
+```{r}
+(r_sqr_lsit <- map(summaries_lsit, "r.squared"))
+```
+
+To do it in one run we:
+
+```{r}
+fits_lsit <- map(bootstraps, .f = lm, formula = mpg~disp)
+
+bootstraps %>% map(.f = lm, formula = mpg ~ disp) %>%
+  map(summary) %>%
+  map_dbl("r.squared")
+
+```
