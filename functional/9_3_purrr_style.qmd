@@ -1,0 +1,71 @@
+---
+title: "9_3_purrr_style"
+format: html
+editor: visual
+---
+
+# 9.3 **Purrr style**
+
+```{r include=FALSE}
+library(tidyverse)
+```
+
+Let's try fitting models to each subset of a dataset and extract corresponding coefficient, the slope!
+
+Let's begin by split mtcars by cylinder values and store them in a list!
+
+```{r}
+by_cyl <- split(mtcars, mtcars$cyl)
+```
+
+we can easily do so:
+
+```{r}
+by_cyl %>% 
+  map(~lm(formula = mpg ~ wt, data = .x)) %>% # returns a list of lm fit object
+  map(coef) %>% # returns a list of coefficient df of lm fits.
+  map_dbl(2) # for each of the coefficient we index the second one which is slope!
+```
+
+imagine if we did not have map ):
+
+We would do
+
+```{r}
+by_cyl %>% 
+  lapply(FUN = function(data){lm(formula = mpg ~ wt, data = data)} ) %>% 
+  vapply(FUN = function(fit) {coefficients = coef(fit)
+  return(coefficients[[1]])}, FUN.VALUE = numeric(1))# telling vapply that my output length would be 1 (the slope)
+
+
+```
+
+Imagine we also do not have pipe D:
+
+We would have to do
+
+```{r}
+
+fit_list <- lapply(X = by_cyl, FUN = function(data) lm(formula = mpg ~ wt, data = data))
+vapply(fit_list, FUN = function(fit){coef(fit)[[2]]}, FUN.VALUE = numeric(1))
+```
+
+Finally, imagine we do not know apply family and would have to do this using a for loop!
+
+```{r}
+
+slopes <- NULL
+
+for(i in 1:length(by_cyl)){
+  model = lm(data = by_cyl[[i]], formula = mpg ~ wt)
+  slopes[i] = coef(model)[[2]]
+}
+```
+
+## takeaway:
+
+as we move from map family \>\>\>\>\> apply family \>\>\>\>\> loop
+
+we essentially moved from 3 iterations \>\>\>\>\> 2 iterations \>\>\>\>\> 1 iteration.
+
+We prefer to do more iterations with simpler step in each instead of a complex compacted iteration. Since the former is easier to read and later modify.
