@@ -1,0 +1,348 @@
+---
+title: "9_4_map_variants"
+format:
+  html:
+    toc: true
+    toc-location: left
+    toc-depth: 4
+editor: visual
+---
+
+```{r include=FALSE}
+library(tidyverse)
+```
+
+# Summary
+
+Every column means a type of return, governed by a family
+
+and based on different number/type of arguments, every family has a series of members.
+
++----------------------+-------------------------------------------------------------+----------------------------------------------------------------------+--------------------------------------------------------------------------+--------------------------------------------------------------+
+|                      | \                                                           | Atomic                                                               | Same type                                                                | Nothing                                                      |
+|                      | List                                                        |                                                                      |                                                                          |                                                              |
++======================+=============================================================+======================================================================+==========================================================================+==============================================================+
+| One argument         | [`map()`](https://purrr.tidyverse.org/reference/map.html)   | [`map_lgl()`](https://purrr.tidyverse.org/reference/map.html), ...   | [`modify()`](https://purrr.tidyverse.org/reference/modify.html)          | [`walk()`](https://purrr.tidyverse.org/reference/map.html)   |
++----------------------+-------------------------------------------------------------+----------------------------------------------------------------------+--------------------------------------------------------------------------+--------------------------------------------------------------+
+| Two arguments        | [`map2()`](https://purrr.tidyverse.org/reference/map2.html) | [`map2_lgl()`](https://purrr.tidyverse.org/reference/map2.html), ... | [`modify2()`](https://purrr.tidyverse.org/reference/modify.html)         | [`walk2()`](https://purrr.tidyverse.org/reference/map2.html) |
++----------------------+-------------------------------------------------------------+----------------------------------------------------------------------+--------------------------------------------------------------------------+--------------------------------------------------------------+
+| One argument + index | [`imap()`](https://purrr.tidyverse.org/reference/imap.html) | [`imap_lgl()`](https://purrr.tidyverse.org/reference/imap.html), ... | [`imodify()`](https://purrr.tidyverse.org/reference/modify.html)         | [`iwalk()`](https://purrr.tidyverse.org/reference/imap.html) |
++----------------------+-------------------------------------------------------------+----------------------------------------------------------------------+--------------------------------------------------------------------------+--------------------------------------------------------------+
+| N arguments          | [`pmap()`](https://purrr.tidyverse.org/reference/map2.html) | [`pmap_lgl()`](https://purrr.tidyverse.org/reference/map2.html), ... | ------------------------------------------------------------------------ | [`pwalk()`](https://purrr.tidyverse.org/reference/map2.html) |
++----------------------+-------------------------------------------------------------+----------------------------------------------------------------------+--------------------------------------------------------------------------+--------------------------------------------------------------+
+
+# 9.4.1 **`modify()`: Same type of output as input:**
+
+How do we double every column in a dataframe?
+
+map would return us a list instead of a dataframe we want.
+
+```{r}
+df <- data.frame(
+  a <- 1:10,
+  b <- 25:16
+)
+
+map(df, ~.x * 2)
+
+
+```
+
+## modify
+
+We can use `modify()` to keep the [output the same type as input]{.underline}
+
+```{r}
+(df <- modify(df, .f = ~.x * 2))
+```
+
+-   as indicated above, modify [does not modify in place,]{.underline} meaning we need to assign if we want to preserve the modified value.
+
+Core of `modify` is basically:
+
+```{r}
+simple_modify <- function(x, f, ...) {
+  for (i in seq_along(x)) {
+    x[[i]] <- f(x[[i]], ...)
+  }
+  x
+} # simplified a little bit than the actual one.
+```
+
+## modify_if
+
+what about a mixed dataframe with both character columns and numeric columns?
+
+we can use `modify_if()` to only modify the numeric ones.
+
+```{r}
+modify_if(iris, .p = is.numeric, .f = ~.x * 100) %>% as_tibble()
+```
+
+# **9.4.2  `map2()` and friends: 2 inputs**
+
+Recall `map()` only [vectorise]{.underline} the .x, for the rest arguments fed to .f, even if they are in vector forms, they remain the same instead of being vectorised.
+
+![](images/map-arg-recycle_1.png)
+
+But what if we need to be able to provide the extra argument as a vector?\
+For example, sometimes we want to calculate mean for each group [by weights]{.underline}
+
+```{r}
+# 8 groups of 10 numbers
+sample_data_points <- map(1:8, ~ runif(10))
+
+sample_data_points[[1]][1] <- NA
+
+# 8 groups of weights, each weight is a vector of length 10 corresponding to the 10 numbers in the group.
+weight <- map(1:8, ~ rpois(n = 10, lambda =  5) + 1)
+
+```
+
+For one group we just do
+
+```{r}
+sample_data_points[[2]] %>% 
+  weighted.mean(w = weight[[2]])
+```
+
+To calculate weighted mean for all groups, we will face Error if we go for `map()`
+
+```{r eval = F}
+map_dbl(sample_data_points, .f = weighted.mean, w = weight)
+
+# Error: ! 'x' and 'w' must have the same length
+```
+
+This is because, for each group, weight is not vectorised and simply fed to w as a list of weights.
+
+## map2
+
+`map2()` can help: it is vectorised over two arguments. This means both `.x` and `.y` are varied in each call to `.f`:
+
+```{r}
+map2_dbl(.x = sample_data_points, 
+         .y = weight, 
+         .f = weighted.mean)
+
+```
+
+![](images/map2.png)
+
+### Compared to map()
+
+two vectors come before the function, rather than one. Additional arguments still go afterwards
+
+![](images/map2-arg.png)
+
+### nice property: recycling .y
+
+map2 recycles .y when its length is not sufficient, meaning if .y is of length 1, map2(x, y, f) is essentially equivalent to map(x, f, y)
+
+![](images/map2-recycle.png)
+
+# 9.4.3  **`walk()` and friends: No outputs**
+
+Most functions are called for the value that they return, so it makes sense to capture and store the value with a [`map()`](https://purrr.tidyverse.org/reference/map.html) function. But some functions are called primarily for their side-effects(e.g. [`cat()`](https://rdrr.io/r/base/cat.html), [`write.csv()`](https://rdrr.io/r/utils/write.table.html), or `ggsave()`)
+
+```{r}
+names <- c("Danny", "Daniel")
+map(names, ~ print(paste0("Hello, ", .x) ))
+
+```
+
+The main purpose is to print the message to users. Returning a list is somewhat redundant.
+
+We can muffle the ouput by assigning the value to a variable we will never use.
+
+```{r}
+useless_variable <- map(names, ~ print(paste0("Hello, ", .x) ))
+
+```
+
+But this makes our code hard to read and not purpose-clear.
+
+## walk
+
+`walk` ignores the return values of the `.f` and instead [return `.x` invisibly]{.underline}
+
+```{r}
+walk(names, ~ print(paste0("Hello, ", .x) ))
+```
+
+![](images/walk.png)
+
+## walk2
+
+Very useful! As we often want to output a file for each of the element in a list. And that requires a pair of arguments, the object and the path that you want to save it to.
+
+![](images/walk2.png)
+
+\
+For example we have some dataframes we want to output respectively as .csv into a folder.
+
+```{r eval = FALSE}
+# assign a path to store the output files.
+path_folder <- "/Users/handingzhang/Desktop/Advanced_R_Notes/functional/9_4_output"
+if(!file.exists(path_folder)) dir.create(path_folder)
+
+# split the dfs, each to be written to a csv in the path.
+cyls <- split(mtcars, mtcars$cyl)
+
+# create a vector of paths for the outputs to go to.
+csv_paths <- file.path(path_folder, 
+                   paste0("cyl-", 
+                          names(cyls), 
+                          ".csv") # make the file name for each csv using the df name.
+                   )
+
+# walk2 would iterate through the dataframes and write them out as csv.
+walk2(.x = cyls, .y = csv_paths, .f = write.csv)
+
+# check the files in the folder to make sure they have created!
+dir(path_folder)
+#> [1] "cyl-4.csv" "cyl-6.csv" "cyl-8.csv"
+```
+
+Here the [`walk2()`](https://purrr.tidyverse.org/reference/map2.html) is equivalent to [`write.csv(cyls[[1]], paths[[1]])`](https://rdrr.io/r/utils/write.table.html), [`write.csv(cyls[[2]], paths[[2]])`](https://rdrr.io/r/utils/write.table.html), [`write.csv(cyls[[3]], paths[[3]])`](https://rdrr.io/r/utils/write.table.html).
+
+# **9.4.4 Iterating over values and indices**
+
+There are three basic ways to loop over a vector with a for loop:
+
+-   Loop over the elements: `for (x in xs)`
+
+-   Loop over the numeric indices: `for (i in seq_along(xs))`
+
+-   Loop over the names: `for (nm in names(xs))`
+
+The first form is analogous to the [`map()`](https://purrr.tidyverse.org/reference/map.html) family.
+
+## imap
+
+The second and third forms are equivalent to the [`imap()`](https://purrr.tidyverse.org/reference/imap.html) family which allows you to iterate over the values and the indices of a vector in parallel
+
+### properties
+
+[`imap(x, f)`](https://purrr.tidyverse.org/reference/imap.html) is equivalent to [`map2(x, names(x), f)`](https://purrr.tidyverse.org/reference/map2.html) if x has names.
+
+[`imap(x, f)`](https://purrr.tidyverse.org/reference/imap.html) is equivalent to [`map2(x, seq_along(x), f)`](https://purrr.tidyverse.org/reference/map2.html) if x has no names.
+
+### over names
+
+recall a dataframe is essentially a list of same-length, named vectors.
+
+```{r}
+imap_chr(iris, ~ paste0("The first value of ", .y, " is ", .x[[1]]))
+```
+
+basically using `imap()`, we have access to `.y`
+
+another example:
+
+```{r}
+imap(.x = mtcars, .f = function(x, y){paste0("Index(name) is: ", y, ". Corresponding column has first value as: ", x[[1]])})
+```
+
+### over indices
+
+If the vector is unnamed, the second argument will be the index:
+
+```{r}
+
+# generate 6 groups of 10 numbers.
+x <- map(1:6, ~ sample(x = 1000, size = 10))
+
+imap_chr(x, ~ paste0("The highest value of the ", .y, "th group is ", max(.x)))
+
+
+```
+
+[`imap()`](https://purrr.tidyverse.org/reference/imap.html) is a useful helper if you want to work with the values in a vector along with their positions.
+
+# **9.4.5 `pmap()` and friends: Any number of inputs**
+
+## pmap
+
+Instead of generalising [`map2()`](https://purrr.tidyverse.org/reference/map2.html) to an arbitrary number of arguments, purrr takes a slightly different tack with [`pmap()`](https://purrr.tidyverse.org/reference/map2.html): you supply it a single list, which contains any number of arguments. In most cases, that will be a list of equal-length vectors, i.e. something very similar to a data frame.
+
+![](images/pmap.png)
+
+Thus:
+
+[`map2(x, y, f)`](https://purrr.tidyverse.org/reference/map2.html) is equivalent to [`pmap(list(x, y), f)`](https://purrr.tidyverse.org/reference/map2.html)
+
+Let's use the previous example in map2()
+
+```{r}
+
+# sample_data_points: list 8 groups of 10 numbers, with the first group containing NA.
+# weight: list of 8 groups of weights, each weight is a vector of length 10 corresponding to the 10 numbers in the group.
+
+pmap_dbl(list(sample_data_points, weight), weighted.mean)
+#> [1]    NA 0.451 0.603 0.452 0.563 0.510 0.342 0.464
+```
+
+Just as in `map2()` , the exatra constant argument(s) can come after.
+
+```{r}
+pmap_dbl(list(sample_data_points, weight), weighted.mean, na.rm = T)
+```
+
+![](images/pmap-arg.png)
+
+### name the argument in the list
+
+We have nice control over the arguments as we can name the elements in the `.l` list that contains the arguments to feed into the `.f`
+
+```{r}
+trims <- c(0, 0.1, 0.2, 0.5)
+x <- rcauchy(1000)
+
+pmap_dbl(list(trim = trims), mean, x = x)
+#> [1] -6.6740  0.0210  0.0235  0.0151
+```
+
+making it crystal clear that for the .f = mean, the trim argument is supplied with trims vector as value. x argument is supplied with x as value.
+
+whereas if we do equivalently in `map_dbl()`
+
+```{r}
+map_dbl(.x = trims, 
+        .f = mean, 
+        x = x)
+```
+
+we are counting on the reader or ourselves to remember that the first argument after `x` is `trim` in the mean() function for this call to make sense.
+
+### tip:
+
+it\'s good practice to name the components of the list to make it very clear how the function will be called.
+
+### argument dataframe!
+
+It\'s often convenient to call [`pmap()`](https://purrr.tidyverse.org/reference/map2.html) with a data frame. A handy way to create that data frame is with [`tibble::tribble()`](https://tibble.tidyverse.org/reference/tribble.html)
+
+Because thereby we can describe the arguments row by row, less likely to make mistakes!
+
+Each row essentially corresponds to one **linear combination of arguments t**o a call of **.f**
+
+Example:
+
+```{r}
+# Recall dplyr::tribble is a good way to create small and easy-to-read tibbles in a row-by-row style.
+params <- dplyr::tribble(
+  ~ n, ~ min, ~ max,
+   1L,     0,     1,
+   2L,    10,   100,
+   3L,   100,  1000
+)
+
+pmap(params, runif)
+```
+
+![](images/pmap-3.png)
+
+In the above example then, `pmap(params, runif)` is equivalent to [`runif(n = 1L, min = 0, max = 1)`](https://rdrr.io/r/stats/Uniform.html), [`runif(n = 2, min = 10, max = 100)`](https://rdrr.io/r/stats/Uniform.html), [`runif(n = 3L, min = 100, max = 1000)`](https://rdrr.io/r/stats/Uniform.html)
+
+if the names of the argument dataframe does not match well with the `.f function` . Simply use dplyr::rename to remedy.
