@@ -79,7 +79,7 @@ we can use `modify_if()` to only modify the numeric ones.
 modify_if(iris, .p = is.numeric, .f = ~.x * 100) %>% as_tibble()
 ```
 
-# **9.4.2  `map2()` and friends: 2 inputs**
+# **9.4.2 `map2()` and friends: 2 inputs**
 
 Recall `map()` only [vectorise]{.underline} the .x, for the rest arguments fed to .f, even if they are in vector forms, they remain the same instead of being vectorised.
 
@@ -141,7 +141,7 @@ map2 recycles .y when its length is not sufficient, meaning if .y is of length 1
 
 ![](images/map2-recycle.png)
 
-# 9.4.3  **`walk()` and friends: No outputs**
+# 9.4.3 **`walk()` and friends: No outputs**
 
 Most functions are called for the value that they return, so it makes sense to capture and store the value with a [`map()`](https://purrr.tidyverse.org/reference/map.html) function. But some functions are called primarily for their side-effects(e.g. [`cat()`](https://rdrr.io/r/base/cat.html), [`write.csv()`](https://rdrr.io/r/utils/write.table.html), or `ggsave()`)
 
@@ -317,11 +317,11 @@ we are counting on the reader or ourselves to remember that the first argument a
 
 ### tip:
 
-it\'s good practice to name the components of the list to make it very clear how the function will be called.
+it's good practice to name the components of the list to make it very clear how the function will be called.
 
 ### argument dataframe!
 
-It\'s often convenient to call [`pmap()`](https://purrr.tidyverse.org/reference/map2.html) with a data frame. A handy way to create that data frame is with [`tibble::tribble()`](https://tibble.tidyverse.org/reference/tribble.html)
+It's often convenient to call [`pmap()`](https://purrr.tidyverse.org/reference/map2.html) with a data frame. A handy way to create that data frame is with [`tibble::tribble()`](https://tibble.tidyverse.org/reference/tribble.html)
 
 Because thereby we can describe the arguments row by row, less likely to make mistakes!
 
@@ -346,3 +346,154 @@ pmap(params, runif)
 In the above example then, `pmap(params, runif)` is equivalent to [`runif(n = 1L, min = 0, max = 1)`](https://rdrr.io/r/stats/Uniform.html), [`runif(n = 2, min = 10, max = 100)`](https://rdrr.io/r/stats/Uniform.html), [`runif(n = 3L, min = 100, max = 1000)`](https://rdrr.io/r/stats/Uniform.html)
 
 if the names of the argument dataframe does not match well with the `.f function` . Simply use dplyr::rename to remedy.
+
+# 9.4.6 Exercises
+
+## Q1
+
+1.  Explain the results of [`modify(mtcars, 1)`](https://purrr.tidyverse.org/reference/modify.html).
+
+    ```{r}
+    modify(mtcars,1)
+    ```
+
+Well we take a look at `as_mapper(1)` and know that basically `modify(mtcars, .f = 1)` is essentially indexing position 1 for us using `pluck_raw` in elements of the list, mtcars, which are the columns. So we see the value of the first element in each column in our output. Meanwhile modify() tries to maintain the structure of the output to be the same as the input, which is a dataframe of 32 rows. Thus it recycles the index of length one 32 times. Eventually showed us the 32 rows of the same value, the first element of each column.
+
+[official solution](https://advanced-r-solutions.rbind.io/functionals#map-variants)
+
+## Q2
+
+Rewrite the following code to use [`iwalk()`](https://purrr.tidyverse.org/reference/imap.html) instead of [`walk2()`](https://purrr.tidyverse.org/reference/map2.html). What are the advantages and disadvantages?
+
+```{r}
+# author did this earlier
+temp <- tempfile()
+dir.create(temp)
+
+cyls <- split(mtcars, mtcars$cyl)
+paths <- file.path(temp, paste0("cyl-", names(cyls), ".csv"))
+walk2(cyls, paths, write.csv)
+
+dir(temp)
+list.files(temp)
+```
+
+let's use iwalk
+
+```{r}
+#reset the folder
+unlink(temp)
+temp <- tempfile()
+dir.create(temp)
+
+# make sure it is empty.
+dir(temp)
+
+# recreate the path names based on the new tempfile.
+paths <- file.path(temp, paste0("cyl-", names(cyls), ".csv"))
+
+
+iwalk(paths, .f = ~write.csv(x = cyls[[.y]], file = .x))
+
+
+# check to ensure they are correctly created.
+dir(temp)
+```
+
+### book solution
+
+**A**: [`iwalk()`](https://purrr.tidyverse.org/reference/imap.html) allows us to use a single variable, storing the output path in the names.
+
+```         
+temp <- tempfile()
+dir.create(temp)
+
+cyls <- split(mtcars, mtcars$cyl)
+names(cyls) <- file.path(temp, paste0("cyl-", names(cyls), ".csv"))
+iwalk(cyls, ~ write.csv(.x, .y))
+```
+
+Copy
+
+We could do this in a single pipe by taking advantage of [`set_names()`](https://purrr.tidyverse.org/reference/set_names.html):
+
+```         
+mtcars %>%
+  split(mtcars$cyl) %>%
+  set_names(~ file.path(temp, paste0("cyl-", .x, ".csv"))) %>%
+  iwalk(~ write.csv(.x, .y))
+```
+
+## Q3
+
+2.  Explain how the following code transforms a data frame using functions stored in a list.
+
+```{r}
+trans <- list(
+  disp = function(x) x * 0.0163871,
+  am = function(x) factor(x, labels = c("auto", "manual"))
+)
+
+nm <- names(trans)
+mtcars[nm] <- map2(trans, mtcars[nm], function(f, var) f(var))
+```
+
+Compare and contrast the [`map2()`](https://purrr.tidyverse.org/reference/map2.html) approach to this [`map()`](https://purrr.tidyverse.org/reference/map.html) approach:
+
+```{r}
+# reset mtcars
+data(mtcars)
+
+(mtcars[nm] <- map(nm, ~ trans[[.x]](mtcars[[.x]])))
+```
+
+### my solution
+
+Basically `trans` stores two named functions with names corresponding to 2 column names in mtcars. Each name corresponds to the index of the column and the function for the actions we want to take with that column.
+
+`nm` then serves as the vector of the column names we will index.
+
+finally, `map2(trans, mtcars[nm], function(f, var) f(var))` basically align the name of the function with the column with the same name, creating two modified columns.
+
+In the alternative way `mtcars[nm] <- map(nm, ~ trans[.x])` nm is serving as both the function names to index from our function list, `trans` and the column names to index from the dataframe. This way also works but we can easily make mistakes if even one pair of name of the function in `trans` and name of the column in `mtcars` are not perfectly matching.
+
+### book solution
+
+**A**: In the first approach
+
+```{r eval=FALSE}
+mtcars[nm] <- map2(trans, mtcars[nm], function(f, var) f(var))
+```
+
+the list of the 2 functions (`trans`) and the 2 appropriately selected data frame columns (`mtcars[nm]`) are supplied to [`map2()`](https://purrr.tidyverse.org/reference/map2.html). [`map2()`](https://purrr.tidyverse.org/reference/map2.html) creates an anonymous function (`f(var)`) which applies the functions to the variables when [`map2()`](https://purrr.tidyverse.org/reference/map2.html) iterates over their (similar) indices. On the left-hand side, the respective 2 elements of `mtcars` are being replaced by their new transformations.
+
+The [`map()`](https://purrr.tidyverse.org/reference/map.html) variant
+
+```{r eval=FALSE}
+mtcars[nm] <- map(nm, ~ trans[[.x]](mtcars[[.x]]))
+```
+
+does basically the same. However, it directly iterates over the names (`nm`) of the transformations. Therefore, the data frame columns are selected during the iteration.
+
+Besides the iteration pattern, the approaches differ in the possibilities for appropriate argument naming in the `.f` argument. In the [`map2()`](https://purrr.tidyverse.org/reference/map2.html) approach we iterate over the elements of `x` and `y`. Therefore, it is possible to choose appropriate placeholders like `f` and `var`. This makes the anonymous function more expressive at the cost of making it longer. We think using the formula interface in this way is preferable compared to the rather cryptic `mtcars[nm] <- map2(trans, mtcars[nm], ~ .x(.y))`.
+
+In the [`map()`](https://purrr.tidyverse.org/reference/map.html) approach we map over the variable names. It is therefore not possible to introduce placeholders for the function and variable names. The formula syntax together with the `.x` pronoun is pretty compact. The object names and the brackets clearly indicate the application of transformations to specific columns of `mtcars`. In this case the iteration over the variable names comes in handy, as it highlights the importance of matching between `trans` and `mtcars` element names. Together with the replacement form on the left-hand side, this line is relatively easy to inspect.
+
+To summarise, in situations where [`map()`](https://purrr.tidyverse.org/reference/map.html) and [`map2()`](https://purrr.tidyverse.org/reference/map2.html) provide solutions for an iteration problem, several points may be considered before deciding for one or the other approach.
+
+## Q4
+
+**Q4**: What does [`write.csv()`](https://rdrr.io/r/utils/write.table.html) return, i.e. what happens if you use it with [`map2()`](https://purrr.tidyverse.org/reference/map2.html) instead of [`walk2()`](https://purrr.tidyverse.org/reference/map2.html)?
+
+**A**: [`write.csv()`](https://rdrr.io/r/utils/write.table.html) returns `NULL`. As we call the function for its side effect (creating a CSV file), [`walk2()`](https://purrr.tidyverse.org/reference/map2.html) would be appropriate here. Otherwise, we receive a rather uninformative list of `NULL`s.
+
+```{r}
+cyls <- split(mtcars, mtcars$cyl)
+
+temp1 <- tempfile()
+dir.create(temp1)
+
+paths <- file.path(temp1, paste0("cyl-", names(cyls), ".csv"))
+
+map2(cyls, paths, write.csv)
+```
