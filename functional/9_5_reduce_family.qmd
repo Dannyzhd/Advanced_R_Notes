@@ -1,0 +1,184 @@
+---
+title: "9.5 Reduce Family"
+author: "Daniel Zhang"
+format: html
+editor: visual
+---
+
+# 9.5 Reduce family
+
+```{r include=FALSE}
+library(tidyverse)
+```
+
+With only two main variants, Reduce family is much smaller than the map family, but is a powerful idea and enable the map-reduce framework which is useful in processing large datasets.
+
+## 9.5.1 Basics
+
+### `reduce`
+
+takes a vector of length *n* and produces a vector of length 1 by calling a function with a pair of values at a time.
+
+[`reduce(1:4, f)`](https://purrr.tidyverse.org/reference/reduce.html) is equivalent to `f(f(f(1, 2), 3), 4)`.
+
+![](images/reduce.png)
+
+[`reduce()`](https://purrr.tidyverse.org/reference/reduce.html) is a useful way to generalise a function that works with two inputs (a **binary** function)
+
+#### example:
+
+find the values that occur in every element.
+
+```{r sample data}
+set.seed(100)
+l <- map(1:4, ~sample(x = 1:10, size = 15, replace = T))
+str(l)
+```
+
+we can solve this problem by using `intersect()` repeatedly..
+
+```{r}
+reduce(.x = l, .f = intersect)
+```
+
+let's check
+
+```{r}
+map_lgl(l, .f = ~  all(c(7, 9, 4) %in% .x) )
+```
+
+Similarly we can check all elements that appeared in at least one list.
+
+```{r}
+reduce(l, union)
+```
+
+Just like in map family, we can pass additional arguments into `reduce` for `.f`
+
+![](images/reduce-arg.png)
+
+core of reduce:
+
+```{r}
+simple_reduce <- function(x, f) {
+  
+  out <- x[[1]]
+  
+  for (i in seq(2, length(x))) {
+    out <- f(out, x[[i]])
+  }
+  
+  out
+}
+```
+
+For the base equivalence `Reduce` , we cannot supply extra arguments.
+
+## **9.5.2 accumulate**
+
+The first `reduce` variant,
+
+### `accumulate`
+
+unlike `reduce` returning just the final result, `accumulate` returns all the intermediate results as well
+
+```{r}
+accumulate(l, intersect)
+```
+
+#### example:
+
+a good way to understand `reduce` and `accumulate` is to think about `sum` and `cumsum`.
+
+`` reduce(x, `+`) `` is equivalent to `sum(x)`
+
+`` accumulate(x, `+`) `` is equivalent to `cumsum(x)`
+
+```{r}
+reduce(1:5, `+`)
+
+accumulate(1:5, `+`)
+```
+
+## **9.5.3 Output types**
+
+Think about the special case in above example where .x has length 1 or 0. What do we get?
+
+```{r}
+reduce(.x = 1, `+`)
+```
+
+We get .x itself! That means `reduce`, in this case cannot check validity of .x
+
+```{r}
+reduce(.x = "A", `+`)
+```
+
+What if it's length 0?
+
+```{r}
+result = safely(reduce)(.x = integer(), .f = `+`)
+
+result$error$message
+```
+
+What is .init then? Well
+
+### `.init`
+
+.init is the value we set for the `reduce` process to begin, the first domino piece.
+
+![](images/reduce-init.png)
+
+Naturally then, given that we supply `.init` , when .x has length 0, reduce would give us the untouched value of `.init`
+
+But what should value should we set for `.init`? That depends on how we want our `reduce` to behave when .x has length 1 or 0.
+
+In most cases we want reduce to give us `.init` when `.x` has length 0 and `.x` itself when `.x` has length 1.
+
+Thus here we set `.init` to be the [**identity** of the real number under the operation of addition:]{.underline} 0.
+
+### R's identity principle
+
+Notice in R operations, such **identity principle** applies to other summary function with a zero length input:
+
+```{r}
+sum(integer())  # x + 0 = x
+#> [1] 0
+prod(integer()) # x * 1 = x
+#> [1] 1
+min(integer())  # min(x, Inf) = x
+#> [1] Inf
+max(integer())  # max(x, -Inf) = x
+#> [1] -Inf
+```
+
+### Tip: always set .init
+
+f you're using [`reduce()`](https://purrr.tidyverse.org/reference/reduce.html) in a function, you should always supply `.init`. Think carefully about what your function should return when you pass a vector of [length 0 or 1]{.underline}, and make sure to test your implementation.
+
+#### Daniel's quick thought
+
+> I mean almost, not always. For example there does **not** exist an identity dataframe_i such that any dataframe_n, when left_join with the dataframe_i, returns itself. In general, not a good idea, in my opinion, to set `.init`,when we reduce a list of dataframes.
+
+Slight gap between mathematics and R programming right here.
+
+## **9.5.4 Multiple inputs**
+
+Very occasionally you need to pass two arguments to the function that you're reducing. For example, you might have a list of data frames that you want to join together, and the variables you use to join will vary from element to element. This is a very specialised scenario, so I don't want to spend much time on it, but I do want you to know that [`reduce2()`](https://purrr.tidyverse.org/reference/reduce.html) exists.
+
+### `reduce2`
+
+The length of the second argument varies based on whether or not `.init` is supplied: if you have four elements of `x`, `f` will only be called three times. If you supply init, `f` will be called four times.
+
+![](images/reduce2.png)
+
+![](images/reduce2-init.png)
+
+## **9.5.5 Map-reduce**
+
+You might have heard of map-reduce, the idea that powers technology like Hadoop. Now you can see how simple and powerful the underlying idea is: map-reduce is a map combined with a reduce. The difference for large data is that the data is spread over multiple computers. Each computer performs the map on the data that it has, then it sends the result to back to a coordinator which *reduces* the individual results back to a single result.
+
+As a simple example, imagine computing the mean of a very large vector, so large that it has to be split over multiple computers. You could ask each computer to calculate the sum and the length, and then return those to the coordinator which computes the overall mean by dividing the total sum by the total length.
+
+# 

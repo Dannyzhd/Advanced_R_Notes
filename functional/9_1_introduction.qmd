@@ -14,7 +14,9 @@ To become significantly more reliable, code must become more transparent. In par
 
 # Def: Functional
 
-A **functional** is a function that takes a function as an input and returns a vector as output.
+functional
+
+:   a function that takes a function as an input and returns a vector as output.
 
 example
 
