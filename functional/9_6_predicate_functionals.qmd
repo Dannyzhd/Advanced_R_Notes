@@ -95,7 +95,7 @@ str(map(keep(df, is.numeric), mean))
 
 ## 9.6.3 Exercises
 
-1.  Why isn\'t [`is.na()`](https://rdrr.io/r/base/NA.html) a predicate function? What base R function is closest to being a predicate version of [`is.na()`](https://rdrr.io/r/base/NA.html)?
+1.  Why isn't [`is.na()`](https://rdrr.io/r/base/NA.html) a predicate function? What base R function is closest to being a predicate version of [`is.na()`](https://rdrr.io/r/base/NA.html)?
 
 By def, a predicate returns a [**single**]{.underline} logical value. **`is.na()`**, on the other hand, returns a logical vector the same length as the input.
 
