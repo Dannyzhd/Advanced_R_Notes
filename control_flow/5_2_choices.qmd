@@ -1,0 +1,241 @@
+---
+title: "5.1 Introduction"
+format: html
+editor: visual
+---
+
+## 5.1 Introduction
+
+There are two primary tools of control flow: choices and loops.
+
+Choices, like `if` statements and [`switch()`](https://rdrr.io/r/base/switch.html) calls, allow you to run different code depending on the input.
+
+Loops, like `for` and `while`, allow you to repeatedly run code, typically with changing options.
+
+## 5.2 Choices
+
+#### Basic if statement flow:
+
+```{r, eval= FALSE}
+if (condition) true_action
+if (condition) true_action else false_action
+```
+
+Typically the actions are compound statements contained within `{`:
+
+```{r}
+grade <- function(x) {
+  if (x > 90) {
+   aaaa <<-  "A"
+  } else if (x > 80) {
+    "B"
+  } else if (x > 50) {
+    "C"
+  } else {
+    "F"
+  }
+}
+
+```
+
+`if` [returns a value]{.underline} so that you can assign the results:
+
+```{r}
+x1 <- if (TRUE) 1 else 2
+x2 <- if (FALSE) 1 else 2
+
+c(x1, x2)
+```
+
+**tip:**
+
+only assign the results of an `if` statement when the entire expression fits [on one line]{.underline} (for readability)
+
+`if` invisibly returns `NULL` if the condition is `FALSE` and we do not have an `else` statement.
+
+```{r}
+greet <- function(name, birthday = FALSE) {
+  paste0(
+    "Hi ", name,
+    if (birthday) " and HAPPY BIRTHDAY"
+  )
+}
+greet("Maria", FALSE)
+greet("Jaime", TRUE)
+
+```
+
+### 5.2.1 Invalid Inputs
+
+The `condition` should evaluate to a single `TRUE` or `FALSE`.
+
+Most other inputs will generate an error:
+
+```{r, eval=FALSE}
+if ("x") 1
+#> Error in if ("x") 1: argument is not interpretable as logical
+if (logical()) 1
+#> Error in if (logical()) 1: argument is of length zero
+if (NA) 1
+#> Error in if (NA) 1: missing value where TRUE/FALSE needed
+
+```
+
+Notice: a logical vector of length greater than 1 will also generate an error.
+
+```{r, eval=FALSE}
+if (c(TRUE, FALSE)) 1
+#>Error in if (c(TRUE, FALSE)) 1 : the condition has length > 1
+```
+
+### 5.2.2 Vectorized if
+
+To handle vectors of conditions is a job of [`ifelse()`](https://rdrr.io/r/base/ifelse.html):
+
+#### [`ifelse()`](https://rdrr.io/r/base/ifelse.html)
+
+a vectorised function with `test`, `yes`, and `no` vectors [(that will be recycled to the same length)]{.underline}
+
+```{r}
+x <- 1:10
+ifelse(x %% 5 == 0, "divisible by 10!!!", as.character(x))
+
+ifelse(x %% 2 == 0, "even", "odd")
+```
+
+**tip:**
+
+Use ifelse() only when the `yes` and `no` vectors are the same type as it is otherwise hard to predict the output type.
+
+#### Daniel: edge cases 
+
+```{r}
+ifelse(NA, 2, 3)
+```
+
+```{r}
+ifelse(logical(), 2, 3)
+```
+
+```{r}
+ifelse(numeric(), 2, 3)
+```
+
+Another vectorised equivalent is the more general [`dplyr::case_when()`](https://dplyr.tidyverse.org/reference/case_when.html)
+
+#### [dplyr::case_when()](https://dplyr.tidyverse.org/reference/case_when.html)
+
+allow any number of condition-vector pairs:
+
+```{r}
+dplyr::case_when(
+  x %% 35 == 0 ~ "fizz buzz",
+  x %% 5 == 0 ~ "fizz",
+  x %% 7 == 0 ~ "buzz",
+  is.na(x) ~ "???",
+  .default = as.character(x)
+  # TRUE ~  as.character(x)
+)
+```
+
+### 5.2.3 switch() Statement
+
+#### [switch()](https://rdrr.io/r/base/switch.html)
+
+Closely related to `if` is the [`switch()`](https://rdrr.io/r/base/switch.html)-statement. It\'s a compact, special purpose equivalent that lets you replace code like:
+
+```{r}
+x_option <- function(x) {
+  if (x == "a") {
+    "option 1"
+  } else if (x == "b") {
+    "option 2" 
+  } else if (x == "c") {
+    "option 3"
+  } else {
+    stop("Invalid `x` value")
+  }
+}
+```
+
+with more succinct version:
+
+```{r}
+x_option1 <- function(x) {
+  switch(x,
+    a = "option 1",
+    b = "option 2",
+    c = "option 3",
+    stop("Invalid `x` value")
+  )
+}
+```
+
+**tip:**
+
+The last component of a [`switch()`](https://rdrr.io/r/base/switch.html) should always throw an error, otherwise unmatched inputs will invisibly return `NULL`:
+
+```{r}
+(switch("c", a = 1, b = 2))
+```
+
+If multiple inputs have the same output, you can leave the right hand side of [`=`](https://rdrr.io/r/base/assignOps.html) empty and the input will \"fall through\" to the next value. This mimics the behaviour of C\'s `switch` statement:
+
+```{r}
+legs <- function(x) {
+  switch(x,
+    cow = ,
+    horse = ,
+    dog = 4,
+    human = ,
+    chicken = 2,
+    plant = 0,
+    stop("Unknown input")
+  )
+}
+legs("cow")
+legs("dog")
+```
+
+#### Daniel: advantage compared to case_when
+
+one big advantage is for special/default case handling. switch allows us to throw error or warning in the end whereas case_when forces us to use the same type value in the default case.
+
+**tip:**
+
+I recommend using [`switch()`](https://rdrr.io/r/base/switch.html) only with character inputs.
+
+reason:when using numeric x, it is harder to read, and has undesirable failure modes if `x` is a not a whole number
+
+#### Exercises: 
+
+##### Q1:
+
+1.  What type of vector does each of the following calls to [`ifelse()`](https://rdrr.io/r/base/ifelse.html) return?
+
+```{r}
+ifelse(TRUE, 1, "no") # numeric
+ifelse(FALSE, 1, "no") # cha
+ifelse(NA, 1, "no") # NA
+```
+
+#### Daniel: small nuance difference here!
+
+-   ifelse(test, yes, no), when test is NA. the returned value would simply be NA.
+
+-   if(NA){.....} would throw error.
+
+##### Q2:
+
+2.  Why does the following code work?
+
+```{r}
+x <- 1:10
+if (length(x)) "not empty" else "empty"
+
+x <- numeric()
+if (length(x)) "not empty" else "empty"
+
+```
+
+if expects logical condition of length one. But if [also accepts numeric value of length one as condition.]{.underline} 0 is treated as FALSE, everything else as TRUE.

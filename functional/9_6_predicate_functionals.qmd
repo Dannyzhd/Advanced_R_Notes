@@ -41,7 +41,8 @@ These are similar to [`any(map_lgl(.x, .p))`](https://rdrr.io/r/base/any.html), 
 Example
 
 ```{r}
-library(palmerpenguins)
+library(pacman)
+p_load(palmerpenguins, tidyverse)
 
 # let's say we want all factor columns 
 keep(penguins, is.factor)
