@@ -1,0 +1,31 @@
+---
+title: "6-1 & 6-2 Function Fundamentals"
+format: html
+editor: visual
+---
+
+## 
+
+# 6.2 Function fundamentals
+
+## 3 components
+
+Functions can be broken down into three components:
+
+1.  **arguments**
+
+2.  **body**
+
+3.  **environment**
+
+Functions are **objects**, just as vectors are objects.
+
+```{r}
+x <- 10
+f1 <- function(x) {
+  function() {
+    x + 10
+  }
+}
+f1(1)()
+```
