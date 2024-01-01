@@ -16,7 +16,7 @@ For each item in `vector`, `perform_action` is called once; updating the value o
 
 **Tip:**
 
-(When iterating over a vector of indices, it\'s conventional to use very short variable names like `i`, `j`, or `k`.)
+(When iterating over a vector of indices, it's conventional to use very short variable names like `i`, `j`, or `k`.)
 
 N.B.: `for` assigns the `item` to the current environment, overwriting any existing variable with the same name
 
