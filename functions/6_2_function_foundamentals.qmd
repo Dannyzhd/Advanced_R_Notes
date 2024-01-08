@@ -94,7 +94,7 @@ Primitive functions are only found in the base package. While they have certain 
 
 ## 6.2.3 First-class functions
 
-It\'s very important to understand that R functions are objects in their own right, a language property often called \"**first-class functions**\".
+It's very important to understand that R functions are objects in their own right, a language property often called "**first-class functions**".
 
 first class function
 
@@ -108,7 +108,7 @@ Unlike in many other languages, there is no special syntax for defining and nami
 
 While you almost always create a function and then bind it to a name, the binding step is not compulsory.
 
-If you choose not to give a function a name, you get an **anonymous function**. This is useful when it\'s not worth the effort to figure out a name:
+If you choose not to give a function a name, you get an **anonymous function**. This is useful when it's not worth the effort to figure out a name:
 
 ```{r, eval=FALSE}
 lapply(mtcars, function(x) length(unique(x)))
@@ -138,7 +138,7 @@ Daniel: this might be useful in control flow scenario where we want to apply dif
 
 ### closure
 
-In R, you\'ll often see functions called **closures**.
+In R, you'll often see functions called **closures**.
 
 ```{r}
 typeof(f02)
