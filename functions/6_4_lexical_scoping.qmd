@@ -32,7 +32,7 @@ names defined inside a function mask names defined outside a function
 
 The same rules apply if a function is defined inside another function. First, R looks inside the current function. Then, it looks where that function was defined (and so on, all the way up to the global environment). Finally, it looks in other loaded packages.
 
-一个function找对应某个name的值时，先从自己argument找，没有的话从自己内部找，没有的话去parent env找（自己被defined的environment），逐次向上寻找。
+一个function使用到某个name的值时，先从function内部env找，没有的话去argument找（invoke promise，在对应环境中evaluate expression），再没有的话去parent env找（自己被defined的environment），逐次向上寻找。
 
 ### **6.4.2 Functions versus variables**
 

@@ -74,7 +74,9 @@ Daniel:
             1.  expression被evaluated了（在哪个环境中eva取决于是否是用户提供）
             2.  evaluated后的这个值被在func环境中assign到了对应的arg上。
 
-    -   environment则是这段expression会被evaluated的环境，默认为function被called的地方。
+        -   注意！这个expression的作用不仅是最后产生的值，其side effect也可能对其被evaluated的环境中的值产生影响。
+
+    -   environment则是这段expression会被evaluated的环境，默认为function被called的地方，也可能是function中，取决于是否由用户提供。
 
     -   value：这个expression被在这个env中evaluated之后产生的value，也就是我们最后的argument采用的值。
 2.  .字如其名代表的lazy evaluation，只在时机到来时对该expression进行evaluate，这个时机既是function body中真正用到这个argument时。这样做好处有三：
@@ -123,8 +125,10 @@ sample(m <-1:20, size = length(x))
 
 The evaluation environment is slightly different for default and user supplied arguments
 
--   user-supplied args are evaluated in the promise env, the env where the func is called.
--   default args are evaluated inside funcs!!
+-   **user-supplied args are evaluated in the promise env, the env where the func is called.**
+-   **default args are evaluated inside funcs!!**
+
+Daniel：但是无论以上哪一种，都只在必须的时候才evaluate，也就是func内部要用到该name，而该name在func内部env又找不到时，咱们才诉诸argument（promise）。
 
 ```{r}
 h05 <- function(x = ls()) {
@@ -144,7 +148,7 @@ h05(ls())
 
 Daniel：作者提供了两种处理用户没有提供arg值的情况下的处理方式。
 
-To determine if an argument\'s value comes from the user or from a default, you can use [`missing()`](https://rdrr.io/r/base/missing.html):
+To determine if an argument's value comes from the user or from a default, you can use [`missing()`](https://rdrr.io/r/base/missing.html):
 
 ```{r}
 h06 <- function(x = 10) {
@@ -185,4 +189,4 @@ sample <- function(x, size = NULL, replace = FALSE, prob = NULL) {
 }
 ```
 
-Because of lazy evaluation, you don\'t need to worry about unnecessary computation: the right side of `%||%` will only be evaluated if the left side is `NULL`.
+Because of lazy evaluation, you don't need to worry about unnecessary computation: the right side of `%||%` will only be evaluated if the left side is `NULL`.
