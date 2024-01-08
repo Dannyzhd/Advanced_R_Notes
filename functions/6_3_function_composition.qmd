@@ -1,0 +1,25 @@
+---
+title: "Function Composition"
+format: html
+editor: visual
+---
+
+# 6.3 Function Composition
+
+## 3 methods of composing
+
+Base R provides two ways:
+
+### Nesting
+
+1.  Nesting `f(g(x))`, is concise, and well suited for short sequences. But longer sequences are hard to read because they are read inside out and right to left. As a result, arguments can get spread out over long distances creating the [Dagwood sandwich](https://en.wikipedia.org/wiki/Dagwood_sandwich) problem.
+
+### Intermediate objects
+
+2.  Intermediate objects, `y <- f(x); g(y)`, requires you to name intermediate objects. This is a strength when objects are important, but a weakness when values are truly intermediate.
+
+magrittr package^35^ provides a third option: the binary operator [`%>%`](https://magrittr.tidyverse.org/reference/pipe.html)
+
+### Pipe
+
+3.  Piping, `x %>% f() %>% g()`, allows you to read code in straightforward left-to-right fashion and doesn\'t require you to name intermediate objects. But you can only use it with linear sequences of transformations of a single object. It also requires an additional third party package and assumes that the reader understands piping.

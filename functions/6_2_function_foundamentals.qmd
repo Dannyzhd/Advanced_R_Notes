@@ -10,7 +10,7 @@ editor: visual
 
 ## 3 components
 
-Functions can be broken down into three components:
+[**Functions can be broken down into three components:**]{.underline}
 
 1.  **arguments**
 
@@ -18,14 +18,165 @@ Functions can be broken down into three components:
 
 3.  **environment**
 
-Functions are **objects**, just as vectors are objects.
+[Functions are objects, just as vectors are objects.]{.underline}
+
+We can see the 3 components.
+
+-   The [`formals()`](https://rdrr.io/r/base/formals.html), the list of arguments that control how you call the function.
+
+-   The [`body()`](https://rdrr.io/r/base/body.html), the code inside the function.
+
+-   The [`environment()`](https://rdrr.io/r/base/environment.html), the data structure that determines how the function finds the values associated with the names.
+
+While the formals and body are specified explicitly when you create a function, the environment is specified implicitly, based on *where* you defined the function.
+
+In R, every function is associated with [an environment that stores the variables and functions it has access to.]{.underline}
+
+Daniel: this is the environment where the function is defined. Unless we explicitly re-assign an environment to it.
 
 ```{r}
-x <- 10
-f1 <- function(x) {
-  function() {
-    x + 10
-  }
+library(tidyverse)
+
+f02 <- function(x, y) {
+  # A comment
+  x + y
+  print(environment(f01))
 }
-f1(1)()
+
+formals(f02)
+
+body(f02)
+
+environment(f02)
+
+```
+
+Black dot: the environment
+
+white dots: the function arguments
+
+![](images/components.png)
+
+Like all objects in R, functions can also possess any number of additional [`attributes()`](https://rdrr.io/r/base/attributes.html). One attribute used by base R is `srcref`, short for source reference.
+
+It points to the source code used to create the function.
+
+The `srcref` is used for printing because, unlike [`body()`](https://rdrr.io/r/base/body.html), it **contains code comments** and other formatting.
+
+```{r}
+attr(f02, "srcref")
+
+```
+
+## 6.2.2 Primitive functions
+
+There is one exception to the rule that a function has three components. Primitive functions, like [`sum()`](https://rdrr.io/r/base/sum.html) and [`[`](https://rdrr.io/r/base/Extract.html), call C code directly.
+
+```{r}
+sum
+#> function (..., na.rm = FALSE)  .Primitive("sum")
+`[`
+#> .Primitive("[")
+```
+
+They have either type `builtin` or type `special`.
+
+```{r}
+typeof(sum)
+#> [1] "builtin"
+typeof(`[`)
+#> [1] "special"
+```
+
+These functions exist primarily in C, not R, so their [`formals()`](https://rdrr.io/r/base/formals.html), [`body()`](https://rdrr.io/r/base/body.html), and [`environment()`](https://rdrr.io/r/base/environment.html) are all `NULL`:
+
+Primitive functions are only found in the base package. While they have certain performance advantages, this benefit comes at a price: they are harder to write. For this reason, R-core generally avoids creating them unless there is no other option.
+
+## 6.2.3 First-class functions
+
+It\'s very important to understand that R functions are objects in their own right, a language property often called \"**first-class functions**\".
+
+first class function
+
+:   A function is treated as first class citizen in the language; the function would be treated like any other variable in the language.
+
+Unlike in many other languages, there is no special syntax for defining and naming a function: you simply create a function object (with `function`) and bind it to a name with [`<-`](https://rdrr.io/r/base/assignOps.html):
+
+![](images/first-class.png){width="347"}
+
+### anonymous functions
+
+While you almost always create a function and then bind it to a name, the binding step is not compulsory.
+
+If you choose not to give a function a name, you get an **anonymous function**. This is useful when it\'s not worth the effort to figure out a name:
+
+```{r, eval=FALSE}
+lapply(mtcars, function(x) length(unique(x)))
+Filter(function(x) !is.numeric(x), mtcars)
+integrate(function(x) sin(x) ^ 2, 0, pi)
+```
+
+### list of functions
+
+A final option is to put functions in a list:
+
+```{r}
+funs <- list(
+  half = function(x) x / 2,
+  double = function(x) x * 2
+)
+
+funs$double(10)
+
+
+aaa = purrr::pluck(funs, 2)
+aaa(100)
+
+```
+
+Daniel: this might be useful in control flow scenario where we want to apply different methods to different flow.
+
+### closure
+
+In R, you\'ll often see functions called **closures**.
+
+```{r}
+typeof(f02)
+```
+
+closure
+
+:   R functions capture, or enclose, their environments
+
+## 6.2.4 Invoking a function
+
+Most common way:
+
+1.  placing its arguments, wrapped in parentheses
+
+### do.call()
+
+if we have the arguments already in a data structure:
+
+2.  do.call()
+
+```{r}
+args = list(1:3, function(x){runif(5)}  )
+
+args2 = list(c(1:10, rep(NA, 10)) , na.rm = T)
+```
+
+instead use [`do.call()`](https://rdrr.io/r/base/do.call.html): it has two arguments. The function to call, and a list containing the function arguments:
+
+```{r}
+do.call(purrr::map, args)
+
+do.call(mean, args2)
+```
+
+```{r}
+function(x) 3()
+#> function(x) 3()
+(function(x) 3)()
+#> [1] 3
 ```

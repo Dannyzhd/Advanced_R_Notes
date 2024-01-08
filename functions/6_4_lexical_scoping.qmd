@@ -1,0 +1,118 @@
+---
+title: "Lexical Scoping"
+format: html
+editor: visual
+---
+
+# 6.4 Lexical Scoping
+
+assignment
+
+:   the act of binding a name to a value.
+
+scoping
+
+:   the act of finding the value associated with a name.
+
+R uses **lexical scoping**: it looks up the values of names based on [how a function is defined]{.underline}, [not how it is called.]{.underline}
+
+R's lexical scoping follows four primary rules:
+
+-   Name masking
+
+-   Functions versus variables
+
+-   A fresh start
+
+-   Dynamic lookup
+
+### **6.4.1 Name masking**
+
+names defined inside a function mask names defined outside a function
+
+The same rules apply if a function is defined inside another function. First, R looks inside the current function. Then, it looks where that function was defined (and so on, all the way up to the global environment). Finally, it looks in other loaded packages.
+
+一个function找对应某个name的值时，先从自己argument找，没有的话从自己内部找，没有的话去parent env找（自己被defined的environment），逐次向上寻找。
+
+### **6.4.2 Functions versus variables**
+
+When you use a name in a function call, R ignores non-function objects when looking for that value.
+
+For example g09, in the code below g09 takes 2 different values, one function, one number.
+
+```{r}
+g09 <- function(x) x + 100
+g10 <- function() {
+  g09 <- 10
+  g09(g09)
+}
+g10()
+#> [1] 110
+```
+
+Don't name things like this.
+
+### **6.4.3 A fresh start**
+
+Every time a function is called a new environment is created to host its execution.
+
+### **6.4.4 Dynamic lookup**
+
+Here's how a function scopes
+
+### **where:**
+
+function parameter -\> function body -\> parent env1 -\> parent env of parent env.... global env -\> package namespaces...
+
+Daniel: 此处的parent env1默认即为function三元素中的environment，也就是该function被定义的environment，也就是储存了该function可以scope的所有variable和functions的environment。
+
+#### 注意！
+
+注意！当我们通过source("another_file")从别的file中拿func1时，这个func1是被当作在现在的global environment中定义的，而非在another_file中。
+
+source("another_file"， local = T)可以使得func1的environment变为source所在的环境，比如某个function中。
+
+详情见?source，看local argument
+
+例子见r_notes/concepts/scoping.
+
+### **when:**
+
+when the function is run
+
+Together, these two properties tell us that the output of a function can differ depending on the objects outside the function's environment:
+
+### example:
+
+```{r}
+g12 <- function() x + 1
+x <- 15
+g12()
+
+x <- 1500
+g12()
+
+
+```
+
+### check external dependencies:
+
+use [`codetools::findGlobals()`](https://rdrr.io/pkg/codetools/man/findGlobals.html). This function lists all the external dependencies (unbound symbols) within a function:
+
+```{r}
+codetools::findGlobals(g12)
+environment(g12)
+```
+
+Let's see what happens if we change the environment storing variables and functions g12 has access to.
+
+```{r}
+environment(g12) <- emptyenv()
+```
+
+```{r eval=FALSE}
+g12()
+#> Error in x + 1: could not find function "+"
+```
+
+R relies on lexical scoping to find *everything*, from the obvious, like [`mean()`](https://rdrr.io/r/base/mean.html), to the less obvious, like [`+`](https://rdrr.io/r/base/Arithmetic.html) or even `{`. This gives R's scoping rules a rather beautiful simplicity.

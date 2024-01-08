@@ -1,0 +1,188 @@
+---
+title: "6_5_lazy_evaluation"
+format: html
+editor: visual
+---
+
+## 
+
+# 6.5 lazy evaluation
+
+lazy evalueation
+
+:   In R, function arguments are **lazily evaluated**: they're only evaluated if accessed.
+
+for example: no error here
+
+```{r}
+h01 <- function(x) 10
+
+h01(x = stop("ok"))
+
+h01(x = "string" * "string" )
+```
+
+### **6.5.1 Promises**
+
+Lazy evaluation is powered by a data structure called a **promise**
+
+A promise has three components:
+
+1.  An expression, like `x + y`, which gives rise to the delayed computation.
+2.  An environment where the expression should be evaluated, i.e. the environment [**where the function is called**.]{.underline}
+
+Daniel: 这里要注意不要记混：
+
+梳理一下：arguments基于promises的数据结构（也叫thunk）进行lazy evaluation，取自environment where the function [**is called**]{.underline}
+
+arguments(也就是formals()）中找不到的name才会去body(也就是body())中找，此时再找不到，才采用dynamic lookup，也就是去environment()找，而此处的environment则是指[**environment where the function is defined**]{.underline}.
+
+3.  A value, which is computed and cached the first time a promise is accessed when the expression is evaluated in the specified environment. This ensures that the [**promise is evaluated at most once**]{.underline}
+
+```{r}
+double <- function(x) { 
+  message("Calculating...")
+  x * 2
+}
+
+h03 <- function(x) {
+  c(x, x)
+}
+
+h03(double(20))
+```
+
+### 总结1：
+
+**arguments**：where the function is called.
+
+**dynamic lookup**: where the function is defined.
+
+每一个argument对应的promise，只会被evaluate一次！
+
+You cannot manipulate promises with R code. Promises are like a quantum state: any attempt to inspect them with R code will force an immediate evaluation, making the promise disappear. Later, in Section [20.3](https://adv-r.hadley.nz/evaluation.html#quosures), you'll learn about quosures, which convert promises into an R object where you can easily inspect the expression and the environment.
+
+Daniel:
+
+理解这个function argument底层的数据结构promise/thunk/期约/约定，我觉得主要有以下几点：
+
+1.  三元素：expression，environment，value
+    -   expression：理解了argument不一定非得直接是一个值，instead, 更广义的定义是一段expression：而这个expression被evaluated后可以产生值，从而被赋予到对应的argument。
+
+        -   所以本质上两件事发生了
+
+            1.  expression被evaluated了（在哪个环境中eva取决于是否是用户提供）
+            2.  evaluated后的这个值被在func环境中assign到了对应的arg上。
+
+    -   environment则是这段expression会被evaluated的环境，默认为function被called的地方。
+
+    -   value：这个expression被在这个env中evaluated之后产生的value，也就是我们最后的argument采用的值。
+2.  .字如其名代表的lazy evaluation，只在时机到来时对该expression进行evaluate，这个时机既是function body中真正用到这个argument时。这样做好处有三：
+    -   节省运算资源
+
+    -   允许我们定义默认argument时基于之后function body中的值进行定义。（但是降低了code可读性，不推荐）
+
+    -   （这一条也可能是坏处？）即使我们定义function时定义了某个没有default的argument，且call的时候忘记提供这个argument的值或者expression，只要function body中没有用到这个arg，就不会报错。
+
+```{r}
+ff = function(x) 10
+ff()
+```
+
+### 思考：
+
+```{r}
+sample <- function(x, size = length(x), replace = FALSE, prob = NULL) {
+  x[sample.int(length(x), size, replace = replace, prob = prob)]
+}
+```
+
+```{r}
+# 为什么输出如下
+x = 1
+sample(x = 1:20, size = length(x))
+```
+
+```{r}
+# 为什么输出变了
+sample(x <- 1:20, size = length(x))
+```
+
+提示：上面总结的三元素的第一点：expression
+
+明白上面的原理后，看看6.5.2，再解释下面这两行。
+
+```{r}
+x <- 1
+sample(m <-1:20)
+sample(m <-1:20, size = length(x))
+
+```
+
+### **6.5.2 Default arguments**
+
+The evaluation environment is slightly different for default and user supplied arguments
+
+-   user-supplied args are evaluated in the promise env, the env where the func is called.
+-   default args are evaluated inside funcs!!
+
+```{r}
+h05 <- function(x = ls()) {
+  a <- 1
+  x
+}
+
+# ls() evaluated inside h05:
+h05()
+#> [1] "a" "x"
+
+# ls() evaluated in global environment:
+h05(ls())
+```
+
+### **6.5.3 Missing arguments**
+
+Daniel：作者提供了两种处理用户没有提供arg值的情况下的处理方式。
+
+To determine if an argument\'s value comes from the user or from a default, you can use [`missing()`](https://rdrr.io/r/base/missing.html):
+
+```{r}
+h06 <- function(x = 10) {
+  list(missing(x), x)
+}
+str(h06())
+#> List of 2
+#>  $ : logi TRUE
+#>  $ : num 10
+str(h06(10))
+#> List of 2
+#>  $ : logi FALSE
+#>  $ : num 10
+```
+
+A good alternative to increase readability of our function is to use the binary operator %\|\|%, which returns the first non-Null value from left hand side to right hand side
+
+why?
+
+example:
+
+```{r}
+args(sample)
+#> function (x, size, replace = FALSE, prob = NULL) 
+#> NULL
+```
+
+It looks like both `x` and `size` are required, but if `size` is not supplied, [`sample()`](https://rdrr.io/r/base/sample.html) uses [`missing()`](https://rdrr.io/r/base/missing.html) to provide a default.
+
+This can be confusing to reader as size is actually not required.
+
+so we can refine this by explicitly setting size to be actually not required by assigning NULL to its default value and use NULL to handle the situation where no value is supplied by user.
+
+```{r}
+sample <- function(x, size = NULL, replace = FALSE, prob = NULL) {
+  size <- size %||% length(x)
+  x[sample.int(length(x), size, replace = replace, prob = prob)]
+}
+```
+
+Because of lazy evaluation, you don\'t need to worry about unnecessary computation: the right side of `%||%` will only be evaluated if the left side is `NULL`.
