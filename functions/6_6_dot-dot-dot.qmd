@@ -1,0 +1,96 @@
+---
+title: "6_6_dot-dot-dot"
+format: html
+editor: visual
+---
+
+# **6.6 `...` (dot-dot-dot)**
+
+Functions can have a special argument `...`
+
+With it, a function can take any number of additional arguments.
+
+### pass additional arguments on to another function.
+
+```{r}
+i01 <- function(y, z) {
+  list(y = y, z = z)
+}
+
+i02 <- function(x, ...) {
+  i01(...)
+}
+
+str(i02(x = 1, y = 2, z = 3))
+#> List of 2
+#>  $ y: num 2
+#>  $ z: num 3
+```
+
+### refer position using ..N
+
+Using a special form, `..N`, it\'s possible (but rarely useful) to refer to elements of `...` by position:
+
+```{r}
+
+i03 <- function(...) {
+  list(first = ..1, third = ..3)
+}
+str(i03(1, 2, 3))
+
+```
+
+### list(...)
+
+More useful is [`list(...)`](https://rdrr.io/r/base/list.html), which evaluates the arguments and stores them in a list:
+
+```{r}
+i04 <- function(...) {
+  list(...)
+}
+str(i04(a = 1, b = 2))
+#> List of 2
+#>  $ a: num 1
+#>  $ b: num 2
+```
+
+## two primary uses of `...`
+
+### args to other funcs
+
+If your function **takes a function as an argument**, you want some way to pass additional arguments to that function. In this example, [`lapply()`](https://rdrr.io/r/base/lapply.html) uses `...` to pass `na.rm` on to [`mean()`](https://rdrr.io/r/base/mean.html):
+
+```{r}
+x <- list(c(1, 3, NA), c(4, NA, 6))
+str(lapply(x, mean, na.rm = TRUE))
+#> List of 2
+#>  $ : num 2
+#>  $ : num 5
+```
+
+## s3 generic methods
+
+If your function is an S3 generic, you need some way to allow methods to take arbitrary extra arguments.
+
+For example, take the [`print()`](https://rdrr.io/r/base/print.html) function. Because there are different options for printing depending on the type of object, there\'s no way to pre-specify every possible argument and `...` allows individual methods to have different arguments:
+
+```{r}
+print(factor(letters), max.levels = 4)
+
+print(y ~ x, showEnv = TRUE)
+```
+
+## two down side
+
+### have to carefully explain where the args go
+
+When you use it to pass arguments to another function, you have to carefully explain to the user where those arguments go. This makes it hard to understand what you can do with functions like [`lapply()`](https://rdrr.io/r/base/lapply.html) and [`plot()`](https://rdrr.io/r/graphics/plot.default.html).
+
+### misspelled arguments
+
+A misspelled argument will not raise an error. This makes it easy for typos to go unnoticed:
+
+```{r}
+sum(1, 2, NA, na____rm = TRUE)
+#> [1] NA
+```
