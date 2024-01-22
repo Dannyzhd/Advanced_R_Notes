@@ -1,0 +1,300 @@
+---
+title: "7.1-7.2 Environment Basics"
+format: html
+editor: visual
+---
+
+# **7.1 Introduction**
+
+```{r}
+library(rlang)
+library(tidyverse)
+```
+
+### `env_` functions
+
+env\_ in rlang are designed to work with the pipe
+
+all take an environment as the first argument, and many also return an environment.
+
+# **7.2 Environment basics**
+
+## Environment 4 Properties
+
+-   Every name must be unique.
+
+-   The names in an environment are not ordered.
+
+-   An environment has a parent.
+
+-   Environments are not copied when modified.
+
+### tips: 记忆：名字独立且无顺序 modify-in-place 有parent
+
+## 创建环境
+
+### [rlang::env()](https://rlang.r-lib.org/reference/env.html) 创建环境1
+
+just like list, taking a set o**f name-value pairs**:
+
+-   default **parent is current working env**.
+
+-   can supply an **unnamed value** to specify parent env
+
+```{r}
+e1 <- env(
+  a = FALSE,
+  b = "a",
+  c = 2.3,
+  d = 1:3,
+)
+
+e1 %>% env_parent()
+```
+
+### rlang::new_environment() 创建环境2
+
+new_environment()指定内容麻烦些，相比之下env使用了... to dynamically take any number of inputs.(...的魅力时刻)
+
+```{r}
+ee2 <- new_environment(data =list(a = 1, b= 2, c=3))
+ee2 %>% env_parent()
+```
+
+## A bag of names!
+
+[The job of an environment is to associate, or **bind,**]{.underline} a set of names to a set of values. You can think of an environment as **a bag of names, with no order.**
+
+![](images/bindings.png){width="559"}
+
+## can contain itself
+
+-   we can modify environment using `$` and `[[]]`
+
+-   environments can contain themselves.
+
+```{r}
+e1$d <- e1
+```
+
+![](images/loop.png)
+
+### rlang::env_print() 浏览基础信息
+
+ Printing an environment just displays its memory address
+
+```{r}
+e1
+```
+
+一般没啥用
+
+而用rlang::env_print()可看到env的parent和其bind的名字及其类型。
+
+```{r}
+env_print(e1)
+```
+
+### rlang::env_names() check names in an env
+
+```{r}
+env_names(e1)
+```
+
+和base的ls()类似
+
+## **7.2.2 Important environments**
+
+### rlang::current_env() 当前环境1
+
+### environment() 当前环境2
+
+[`current_env()`](https://rlang.r-lib.org/reference/caller_env.html) is the environment in which code is currently executing.
+
+直接用environment()也等价
+
+```{r}
+identical(current_env(), environment())
+```
+
+### rlang::global_env() 全局环境1
+
+### globalenv() 全局环境2
+
+### rlang::empty_env()空环境
+
+### identical() 检测两环境是否相同
+
+When you\'re experimenting interactively, [`current_env()`](https://rlang.r-lib.org/reference/caller_env.html) is usually the global environment, or [`global_env()`](https://rlang.r-lib.org/reference/search_envs.html).
+
+```{r}
+identical(global_env(), current_env())
+```
+
+对比两个环境时，用identical(), 别用==，which is **vector-wise**
+
+```{r}
+identical(env_parent(base_env()), empty_env())
+```
+
+## **7.2.3 Parents**
+
+Every environment has a **parent**, another environment.
+
+(除了可怜的emp_env)
+
+## lexical scoping
+
+if a name is not found in an environment, then R will look in its parent (and so on).
+
+### set parent in  env()
+
+Set the parent environment by supplying an unnamed argument to [`env()`](https://rlang.r-lib.org/reference/env.html). If you don\'t supply it, it defaults to the current environment.
+
+```{r}
+e2a <- env(d = 4, e = 5)
+e2b <- env(e2a, a = 1, b = 2, c = 3)
+```
+
+e2a被assign为了e2b的parent env
+
+![](images/parents.png)
+
+蓝点即表示此env的parent，箭头表示lexical scoping，当前环境找不到某个name的值时，去parent env找～！
+
+### rlang::env_parent() 父环境
+
+```{r}
+env_parent(e2b)
+# let's confirm this is indeed e2a as we assigned.
+e2a
+env_parent(e2a)
+```
+
+### 所有env的祖宗：emp_env
+
+Only one environment doesn\'t have a parent: the **empty** environment.
+
+把环境之间的关系想象成族谱的话，族谱的尽头，辈分最长的env，就是emp_env了
+
+```{r}
+# e2c has parent: emp env
+e2c <- env(empty_env(), d = 4, e = 5)
+
+# e2d has parent: e2c
+e2d <- env(e2c, a = 1, b = 2, c = 3)
+```
+
+![](images/parents-empty.png)
+
+### env_parents() 打印族谱（所有父环境）
+
+You can see all ancestors with [`env_parents()`](https://rlang.r-lib.org/reference/env_parent.html):
+
+```{r}
+env_parents(e2b)
+
+env_parents(e2d)
+
+# By default, env_parents() stops when it gets to the global environment.
+# we can change this behavior by setting last env for it to stop.
+# env_parents(e2b, last = empty_env())
+```
+
+### [parent.env()](https://rdrr.io/r/base/environment.html) 返还一个父环境
+
+## **7.2.4 Super assignment, `<<-`**
+
+Regular assignment, [`<-`](https://rdrr.io/r/base/assignOps.html), always creates a variable in the current environment.
+
+Super assignment, `<<-` instead modifies an existing variable found in a parent environment.
+
+`<<-` 会先挨个在parent env中寻找该值，找到了就modify，直到global env，此时还没找到的话就在global env中创建并赋值。
+
+If [`<<-`](https://rdrr.io/r/base/assignOps.html) doesn\'t find an existing variable, it will create one in the global environment.
+
+### **7.2.5 Getting and setting**
+
+You can get and set elements of an environment with [`$`](https://rdrr.io/r/base/Extract.html) and [`[[`](https://rdrr.io/r/base/Extract.html) in the same way as a list
+
+basically：
+
+1.  \$
+2.  \[\["string_name_of_the_variable"\]\]
+
+```{r}
+
+e3 <- env(x = 1, y = 2)
+e3$x
+
+e3$z <- 3
+e3[["z"]]
+```
+
+#### warning：cannot subset by numeric indices
+
+#### warning：cannot subset by \[\]
+
+```{r, eval=FALSE}
+e3[[1]]
+#> Error in e3[[1]]: wrong arguments for subsetting an environment
+
+e3[c("x", "y")]
+#> Error in e3[c("x", "y")]: object of type 'environment' is not subsettable
+```
+
+[`$`](https://rdrr.io/r/base/Extract.html) and [`[[`](https://rdrr.io/r/base/Extract.html) will return `NULL` if the binding doesn\'t exist. Use [`env_get()`](https://rlang.r-lib.org/reference/env_get.html) if you want an error:
+
+使用`$`或者`[[`的话如果提取的对象不存在，则会返还NULL
+
+更严格的提取则是env_get
+
+### rlang::env_get() 提取object
+
+```{r}
+e3$xyz
+#> NULL
+
+# 顺便复习下safely和pluck
+# 此时强行取不存在的值就会报错啦。如下
+safely_env_get <- purrr::safely(env_get)
+
+safely_env_get(e3, "x") %>% pluck("result")
+
+safely_env_get(e3, "xyzzz") %>% pluck("error", "message")
+```
+
+## 增加链接
+
+### rlang::env_poke() 增加一个链接
+
+[`env_poke()`](https://rlang.r-lib.org/reference/env_poke.html)^42^ takes a name (as string) and a value:
+
+```{r}
+env_poke(e3, "a", 100)
+e3$a
+```
+
+### rlang::env_bind() 增加多个链接
+
+[`env_bind()`](https://rlang.r-lib.org/reference/env_bind.html) allows you to bind multiple values:
+
+又一次体现了dot-dot-dot的魅力～
+
+```{r}
+env_bind(e3, a = 10, b = 20)
+env_names(e3)
+
+```
+
+### rlang::env_has() 查询链接是否存在
+
+You can determine if an environment has a binding with [`env_has()`](https://rlang.r-lib.org/reference/env_has.html):
+
+```{r}
+aaa <- 1000
+env_has(env = global_env(), nms = c("setwd", "aaa"))
+
+# 因为这个function存在于base package中
+env_has(env = base_env(), nms = c("setwd", "aaa"))
+```
